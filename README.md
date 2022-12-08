@@ -1,13 +1,14 @@
 # TODO
  - [ ] Option to sort by hex value (i.e. 0x20 comes before 0x21)
  - [ ] Option to sort by frequency (i.e. If there are more 'e's those come before 'c')
- - [ ] Bar graph
- - [ ] Print hex and ASCII
- - [ ] Enable disable ASCII print
+ - [x] Bar graph
+ - [x] Print hex and ASCII
+ - [ ] Enable/disable ASCII print
  - [ ] Scriptable output ?? need to workshop this
  - [ ] Classify data by frequency analysis
  - [ ] Add metrics like index of coincidence + others
  - [ ] Option to show percentage or total count
  - [ ] Option to enable/disable UTF-8 / ASCII only graphics
  - [ ] Figure out some way to put color into this bad boy
- - [ ] Unicode mode?
+ - [ ] Analyze unicode code points / graphemes instead of bytes?
+ - [ ] Add vertical bargraph (where the bars are horizontal, and the next bar is vertically down)

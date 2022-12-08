@@ -1,3 +1,5 @@
+#![feature(let_chains)]
+
 use std::{
     collections::HashMap,
     fs::File,
@@ -7,19 +9,8 @@ use std::{
 
 use clap::Parser;
 use color_eyre::Result;
-use crossterm::{
-    cursor::MoveTo,
-    queue,
-    style::{
-        Attribute as CAttribute, Color as CColor, Print, SetAttribute, SetBackgroundColor,
-        SetForegroundColor,
-    },
-    terminal,
-};
-use crossterm::{
-    cursor::{self, MoveToNextLine},
-    QueueableCommand,
-};
+use crossterm::style::{Color as CColor, Print, SetBackgroundColor, SetForegroundColor};
+use crossterm::QueueableCommand;
 use tui::{
     buffer::Buffer,
     layout::Rect,
@@ -71,18 +62,17 @@ fn main() -> Result<()> {
     let mut buffer = Buffer::empty(area);
 
     buffer.set_string(0, 0, &max_record_label, Style::default());
-    buffer.set_string(0, height - 1, &min_record_label, Style::default());
+    buffer.set_string(0, height - 2, &min_record_label, Style::default());
 
     let left_margin: u16 = max_record_label.len() as u16 + 1;
 
     const BAR_WIDTH: u16 = 2;
+    let style = Style::default().fg(Color::White);
 
     // FIXME: show all data
     for (i, (byte, n)) in count.into_iter().enumerate().take(50) {
-        // println!("{byte:02x}: {n}");
-
         // The height of the bar in 8ths
-        let bar_height = ((height as u64 * 8 * n) / max_count) as u16;
+        let bar_height = (((height - 1) as u64 * 8 * n) / max_count) as u16;
         // // very smol amount of elements
         // if bar_height == 0 && n != 0 {
 
@@ -92,8 +82,9 @@ fn main() -> Result<()> {
         for dy in 0..bar_height {
             for dx in 0..BAR_WIDTH {
                 buffer
-                    .get_mut(left_margin + i as u16 * 3 + dx, height - 1 - dy)
-                    .set_symbol(bar::FULL);
+                    .get_mut(left_margin + i as u16 * 3 + dx, height - 2 - dy)
+                    .set_symbol(bar::FULL)
+                    .set_style(style);
             }
         }
 
@@ -111,9 +102,31 @@ fn main() -> Result<()> {
                 };
 
                 buffer
-                    .get_mut(left_margin + i as u16 * 3 + dx, height - 1 - bar_height)
-                    .set_symbol(symbol);
+                    .get_mut(left_margin + i as u16 * 3 + dx, height - 2 - bar_height)
+                    .set_symbol(symbol)
+                    .set_style(style);
             }
+        }
+
+        // Add byte hex value
+        let hex = format!("{byte:02x}");
+        if bar_height > 0 {
+            buffer.set_string(
+                left_margin + i as u16 * 3,
+                height - 2,
+                hex,
+                Style::default().bg(Color::White).fg(Color::Black), // TODO: Make this bold
+            )
+        } else {
+            buffer.set_string(left_margin + i as u16 * 3, height - 3, hex, style)
+        }
+
+        // Add ascii byte value
+        if let Some(char) = char::from_u32(byte as u32) && !char.is_control() && !char.is_whitespace() {
+            buffer
+                .get_mut(left_margin + i as u16 * 3, height - 1)
+                .set_char(char)
+                .set_style(style);
         }
     }
 
