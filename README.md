@@ -25,3 +25,4 @@
  - [x] Make the bargraph responsive to your screen with regards to width
  - [ ] Make the bargraph responsive to your screen in a bunch of ways
  - [ ] Frequency analysis seems slow, 5.2MB takes 2s
+ - [ ] Buffer is not big enough for vertical bargraphs.

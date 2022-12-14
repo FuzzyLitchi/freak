@@ -8,7 +8,7 @@ use std::{
 };
 
 use clap::Parser;
-use color_eyre::Result;
+use color_eyre::{eyre::eyre, Result};
 use crossterm::QueueableCommand;
 use crossterm::{
     style::{Color as CColor, Print, SetBackgroundColor, SetForegroundColor},
@@ -26,13 +26,14 @@ use tui::{
 struct Cli {
     /// Optional name to operate on
     file: PathBuf,
-    // /// Sets a custom config file
-    // #[arg(short, long, value_name = "FILE")]
-    // config: Option<PathBuf>,
 
-    // /// Turn debugging information on
-    // #[arg(short, long, action = clap::ArgAction::Count)]
-    // debug: u8,
+    /// Force horizontal bar graph
+    #[arg(long)]
+    horizontal: bool,
+
+    /// Force vertical bar graph
+    #[arg(long)]
+    vertical: bool,
 }
 
 fn main() -> Result<()> {
@@ -44,7 +45,21 @@ fn main() -> Result<()> {
 
     let distribution = count_distribution(file)?;
 
-    let buffer = draw_distribution(distribution)?;
+    let graph;
+    if cli.horizontal {
+        graph = BarGraph::Horizontal;
+    } else if cli.vertical {
+        graph = BarGraph::Vertical;
+    } else {
+        // TODO: switch to this function once vertical works
+        // graph = choose_graph(&distribution)?
+        graph = BarGraph::Horizontal;
+    };
+
+    let buffer = match graph {
+        BarGraph::Horizontal => draw_horizontal_distribution(&distribution)?,
+        BarGraph::Vertical => draw_vertical_distribution(&distribution)?,
+    };
 
     draw_buffer(buffer)?;
 
@@ -68,7 +83,41 @@ fn count_distribution(file: File) -> Result<Distribution> {
     Ok(distribution)
 }
 
-fn draw_distribution(distribution: Distribution) -> Result<Buffer> {
+enum BarGraph {
+    Horizontal,
+    Vertical,
+}
+
+// There is a lot of non-DRY stuff here. Not ideal TODO: fix it.
+fn choose_graph(distribution: &Distribution) -> Result<BarGraph> {
+    let (width, _) = terminal::size()?;
+
+    let max_occurrences: u64 = distribution
+        .iter()
+        .map(|(_, n)| *n)
+        .max()
+        .unwrap_or_default();
+
+    let datapoints = distribution.len() as u16;
+    let left_margin = max_occurrences.to_string().len() as u16 + 1;
+    let horizontal_max = (width - left_margin - RIGHT_MARGIN) / (BAR_WIDTH + BAR_MARGIN);
+
+    if datapoints <= horizontal_max {
+        Ok(BarGraph::Horizontal)
+    } else if width >= 10 {
+        Ok(BarGraph::Vertical)
+    } else {
+        Err(eyre!("Terminal too small"))
+    }
+}
+
+const RIGHT_MARGIN: u16 = 1;
+const BAR_WIDTH: u16 = 2;
+const BAR_MARGIN: u16 = 1;
+
+/// Creates a buffer with the rendered bar graph. The bar graph is wider than it is tall
+/// which is why we call it horizontal. The bars themselves are actually vertical.
+fn draw_horizontal_distribution(distribution: &Distribution) -> Result<Buffer> {
     let max_occurrences: u64 = distribution
         .iter()
         .map(|(_, n)| *n)
@@ -76,7 +125,7 @@ fn draw_distribution(distribution: Distribution) -> Result<Buffer> {
         .unwrap_or_default();
 
     // Create labels
-    let max_record_label = format!("{max_occurrences}");
+    let max_record_label = max_occurrences.to_string();
     let min_record_label = format!("{:width$}", 0, width = max_record_label.len());
 
     let height = 25;
@@ -89,10 +138,7 @@ fn draw_distribution(distribution: Distribution) -> Result<Buffer> {
     buffer.set_string(0, height - 2, &min_record_label, Style::default());
 
     let left_margin: u16 = max_record_label.len() as u16 + 1;
-    const RIGHT_MARGIN: u16 = 1;
 
-    const BAR_WIDTH: u16 = 2;
-    const BAR_MARGIN: u16 = 1;
     let style = Style::default().fg(Color::White);
 
     let bar_count = (width - left_margin - RIGHT_MARGIN) / (BAR_WIDTH + BAR_MARGIN);
@@ -164,9 +210,127 @@ fn draw_distribution(distribution: Distribution) -> Result<Buffer> {
         }
 
         // Add ascii byte value
-        if let Some(char) = char::from_u32(byte as u32) && char.is_ascii() && !char.is_control() && !char.is_whitespace() {
+        if let Some(char) = char::from_u32(*byte as u32) && char.is_ascii() && !char.is_control() && !char.is_whitespace() {
             buffer
                 .get_mut(left_margin + i as u16 * (BAR_WIDTH + BAR_MARGIN), height - 1)
+                .set_char(char)
+                .set_style(style);
+        }
+    }
+
+    Ok(buffer)
+}
+
+const TOP_MARGIN: u16 = 2;
+const BOTTOM_MARGIN: u16 = 1;
+const LEFT_MARGIN: u16 = 3;
+const BAR_HEIGHT: u16 = 1;
+
+mod vertical {
+    pub const ONE_EIGHTH: &str = "▏";
+    pub const ONE_QUARTER: &str = "▎";
+    pub const THREE_EIGHTHS: &str = "▍";
+    pub const HALF: &str = "▌";
+    pub const FIVE_EIGHTHS: &str = "▋";
+    pub const THREE_QUARTERS: &str = "▊";
+    pub const SEVEN_EIGHTHS: &str = "▉";
+    pub const FULL: &str = "█";
+}
+
+fn draw_vertical_distribution(distribution: &Vec<(u8, u64)>) -> Result<Buffer> {
+    let max_occurrences: u64 = distribution
+        .iter()
+        .map(|(_, n)| *n)
+        .max()
+        .unwrap_or_default();
+    let datapoints = distribution.len() as u16;
+
+    // Create labels
+    let max_record_label = max_occurrences.to_string();
+
+    let (width, _) = terminal::size()?;
+    let height = TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * datapoints + BOTTOM_MARGIN;
+
+    // FIXME: Size of rect is over 65k which means it doesn't let us do it
+    let area = Rect::new(0, 0, width, height);
+    let width = area.width;
+
+    let mut buffer = Buffer::empty(area);
+
+    // Labels
+    buffer.set_string(LEFT_MARGIN, TOP_MARGIN - 2, "0", Style::default());
+    buffer.set_string(
+        width - max_record_label.len() as u16 - RIGHT_MARGIN,
+        TOP_MARGIN - 2,
+        &max_record_label,
+        Style::default(),
+    );
+
+    // Draw bars
+    let style = Style::default().fg(Color::White);
+
+    for (i, (byte, n)) in distribution.into_iter().enumerate() {
+        // The height of the bar in 8ths
+        let bar_width =
+            (((width - LEFT_MARGIN - RIGHT_MARGIN) as u64 * 8 * n) / max_occurrences) as u16;
+
+        let (bar_width, last_layer) = (bar_width / 8, bar_width % 8);
+
+        for dx in 0..bar_width {
+            buffer
+                .get_mut(
+                    LEFT_MARGIN + dx,
+                    TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i as u16,
+                )
+                .set_symbol(vertical::FULL)
+                .set_style(style);
+        }
+
+        if last_layer != 0 {
+            let symbol = match last_layer {
+                1 => vertical::ONE_EIGHTH,
+                2 => vertical::ONE_QUARTER,
+                3 => vertical::THREE_EIGHTHS,
+                4 => vertical::HALF,
+                5 => vertical::FIVE_EIGHTHS,
+                6 => vertical::THREE_QUARTERS,
+                7 => vertical::SEVEN_EIGHTHS,
+                _ => unreachable!(),
+            };
+
+            buffer
+                .get_mut(
+                    LEFT_MARGIN + bar_width,
+                    TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i as u16,
+                )
+                .set_symbol(symbol)
+                .set_style(style);
+        }
+
+        // Add byte hex value
+        let hex = format!("{byte:02x}");
+        if bar_width > 0 {
+            buffer.set_string(
+                LEFT_MARGIN,
+                TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i as u16,
+                hex,
+                Style::default().bg(Color::White).fg(Color::Black), // TODO: Make this bold
+            )
+        } else {
+            buffer.set_string(
+                LEFT_MARGIN + 1,
+                TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i as u16,
+                hex,
+                style,
+            )
+        }
+
+        // Add ascii byte value
+        if let Some(char) = char::from_u32(*byte as u32) && char.is_ascii() && !char.is_control() && !char.is_whitespace() {
+            buffer
+                .get_mut(
+                    1,
+                    TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i as u16)
                 .set_char(char)
                 .set_style(style);
         }
