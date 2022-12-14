@@ -34,6 +34,10 @@ struct Cli {
     /// Force vertical bar graph
     #[arg(long)]
     vertical: bool,
+
+    /// Sort by value instead of by frequency
+    #[arg(long)]
+    ordered: bool,
 }
 
 fn main() -> Result<()> {
@@ -43,7 +47,15 @@ fn main() -> Result<()> {
 
     let file = File::open(cli.file)?;
 
-    let distribution = count_distribution(file)?;
+    let mut distribution = count_distribution(file)?;
+
+    if cli.ordered {
+        // Sort by key
+        distribution.sort_by(|(byte1, _), (byte2, _)| byte1.cmp(byte2));
+    } else {
+        // Sort high to low
+        distribution.sort_by(|(_, n1), (_, n2)| n2.cmp(n1));
+    }
 
     let graph;
     if cli.horizontal {
@@ -76,11 +88,7 @@ fn count_distribution(file: File) -> Result<Distribution> {
         *count.entry(byte).or_insert(0) += 1;
     }
 
-    let mut distribution: Vec<(u8, u64)> = count.into_iter().collect();
-    // Sort high to low
-    distribution.sort_by(|(_, n1), (_, n2)| n2.cmp(n1));
-
-    Ok(distribution)
+    Ok(count.into_iter().collect())
 }
 
 enum BarGraph {
@@ -143,11 +151,7 @@ fn draw_horizontal_distribution(distribution: &Distribution) -> Result<Buffer> {
 
     let bar_count = (width - left_margin - RIGHT_MARGIN) / (BAR_WIDTH + BAR_MARGIN);
 
-    for (i, (byte, n)) in distribution
-        .into_iter()
-        .enumerate()
-        .take(bar_count as usize)
-    {
+    for (i, (byte, n)) in distribution.iter().enumerate().take(bar_count as usize) {
         // The height of the bar in 8ths
         let bar_height = (((height - 1) as u64 * 8 * n) / max_occurrences) as u16;
         // // very smol amount of elements
@@ -269,7 +273,7 @@ fn draw_vertical_distribution(distribution: &Vec<(u8, u64)>) -> Result<Buffer> {
     // Draw bars
     let style = Style::default().fg(Color::White);
 
-    for (i, (byte, n)) in distribution.into_iter().enumerate() {
+    for (i, (byte, n)) in distribution.iter().enumerate() {
         // The height of the bar in 8ths
         let bar_width =
             (((width - LEFT_MARGIN - RIGHT_MARGIN) as u64 * 8 * n) / max_occurrences) as u16;
