@@ -20,7 +20,8 @@
  - [ ] Add vertical bargraph (where the bars are horizontal, and the next bar is vertically down)
 
 # Issues
- - [ ] Refractor printing into a seperate method
+ - [x] Refractor printing into a seperate method
  - [ ] ASCII printing is printing non-ascii characters like `ð`
+ - [x] Make the bargraph responsive to your screen with regards to width
  - [ ] Make the bargraph responsive to your screen in a bunch of ways
  - [ ] Frequency analysis seems slow, 5.2MB takes 2s
