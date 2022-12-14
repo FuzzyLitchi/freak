@@ -164,7 +164,7 @@ fn draw_distribution(distribution: Distribution) -> Result<Buffer> {
         }
 
         // Add ascii byte value
-        if let Some(char) = char::from_u32(byte as u32) && !char.is_control() && !char.is_whitespace() {
+        if let Some(char) = char::from_u32(byte as u32) && char.is_ascii() && !char.is_control() && !char.is_whitespace() {
             buffer
                 .get_mut(left_margin + i as u16 * (BAR_WIDTH + BAR_MARGIN), height - 1)
                 .set_char(char)
