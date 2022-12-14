@@ -53,7 +53,8 @@ fn main() -> Result<()> {
         // Sort by key
         distribution.sort_by(|(byte1, _), (byte2, _)| byte1.cmp(byte2));
     } else {
-        // Sort high to low
+        // Sort high to low (and for equal occurences, from sort by value)
+        distribution.sort_by(|(byte1, _), (byte2, _)| byte1.cmp(byte2));
         distribution.sort_by(|(_, n1), (_, n2)| n2.cmp(n1));
     }
 
