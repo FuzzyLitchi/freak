@@ -6,7 +6,7 @@
 
 # TODO
  - [x] Sort by frequency (i.e. If there are more 'e's those come before 'c')
- - [ ] Option to sort by hex value (i.e. 0x20 comes before 0x21)
+ - [x] Option to sort by hex value (i.e. 0x20 comes before 0x21)
  - [x] Bar graph
  - [x] Print hex and ASCII
  - [ ] Enable/disable ASCII print
@@ -17,7 +17,7 @@
  - [ ] Option to enable/disable UTF-8 / ASCII only graphics
  - [ ] Figure out some way to put color into this bad boy
  - [ ] Analyze unicode code points / graphemes instead of bytes?
- - [ ] Add vertical bargraph (where the bars are horizontal, and the next bar is vertically down)
+ - [x] Add vertical bargraph (where the bars are horizontal, and the next bar is vertically down)
 
 # Issues
  - [x] Refractor printing into a seperate method
