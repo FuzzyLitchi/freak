@@ -1,18 +1,15 @@
 #![feature(let_chains)]
 
-use std::{collections::HashMap, fs::File, io::Read, path::PathBuf};
+use std::{collections::HashMap, default, fs::File, io::Read, path::PathBuf};
 
 mod buffer;
-use buffer::{draw_buffer, Buffer};
+use buffer::{draw_buffer, Buffer, Style};
 
 use clap::Parser;
 use color_eyre::{eyre::eyre, Result};
 
-use crossterm::terminal;
-use tui::{
-    style::{Color, Style},
-    symbols::bar,
-};
+use crossterm::{style::Color, terminal};
+use tui::symbols::bar;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -137,12 +134,21 @@ fn draw_horizontal_distribution(distribution: &Distribution) -> Result<Buffer> {
 
     let mut buffer = Buffer::empty(width, height);
 
-    buffer.set_string(0, 0, &max_record_label);
-    buffer.set_string(0, height - 2, &min_record_label);
+    buffer.set_string(0, 0, &max_record_label, Default::default());
+    buffer.set_string(0, height - 2, &min_record_label, Default::default());
 
     let left_margin = max_record_label.len() + 1;
 
     let bar_count = (width - left_margin - RIGHT_MARGIN) / (BAR_WIDTH + BAR_MARGIN);
+
+    let white = Style {
+        fg: Some(Color::White),
+        ..Default::default()
+    };
+    let inverted = Style {
+        bg: Some(Color::White),
+        fg: Some(Color::Black),
+    };
 
     for (i, (byte, n)) in distribution.iter().enumerate().take(bar_count as usize) {
         // The height of the bar in 8ths
@@ -195,14 +201,14 @@ fn draw_horizontal_distribution(distribution: &Distribution) -> Result<Buffer> {
                 left_margin + i * (BAR_WIDTH + BAR_MARGIN),
                 height - 2,
                 &hex,
-                // Style::default().bg(Color::White).fg(Color::Black), // TODO: Make this bold
+                inverted, // TODO: Make this bold
             )
         } else {
             buffer.set_string(
                 left_margin + i * (BAR_WIDTH + BAR_MARGIN),
                 height - 3,
                 &hex,
-                // style, FIXME
+                white,
             )
         }
 
@@ -252,12 +258,23 @@ fn draw_vertical_distribution(distribution: &Vec<(u8, u64)>) -> Result<Buffer> {
     let mut buffer = Buffer::empty(width, height);
 
     // Labels
-    buffer.set_string(LEFT_MARGIN, TOP_MARGIN - 2, "0");
+    buffer.set_string(LEFT_MARGIN, TOP_MARGIN - 2, "0", Default::default());
     buffer.set_string(
         width - max_record_label.len() - RIGHT_MARGIN,
         TOP_MARGIN - 2,
         &max_record_label,
+        Default::default(),
     );
+
+    // Styles
+    let white = Style {
+        fg: Some(Color::White),
+        ..Default::default()
+    };
+    let inverted = Style {
+        bg: Some(Color::White),
+        fg: Some(Color::Black),
+    };
 
     // Draw bars
     for (i, (byte, n)) in distribution.iter().enumerate() {
@@ -302,14 +319,14 @@ fn draw_vertical_distribution(distribution: &Vec<(u8, u64)>) -> Result<Buffer> {
                 LEFT_MARGIN,
                 TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i,
                 &hex,
-                // Style::default().bg(Color::White).fg(Color::Black), // TODO: Make this bold FIX
+                inverted, // TODO: Make this bold FIX
             )
         } else {
             buffer.set_string(
                 LEFT_MARGIN + 1,
                 TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i,
                 &hex,
-                // style, FIXME: make this white
+                white,
             )
         }
 

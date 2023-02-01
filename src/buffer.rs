@@ -2,11 +2,10 @@ use std::io::stdout;
 
 use color_eyre::Result;
 use crossterm::{
-    style::{Color as CColor, Print, SetBackgroundColor, SetForegroundColor},
+    style::{Color, Print, SetBackgroundColor, SetForegroundColor},
     QueueableCommand,
 };
 use smol_str::SmolStr;
-use tui::style::Color;
 use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Clone)]
@@ -36,6 +35,24 @@ impl Cell {
         self.bg = color;
         self
     }
+
+    pub fn set_style(&mut self, style: Style) -> &mut Self {
+        if let Some(fg) = style.fg {
+            self.set_fg(fg);
+        }
+        if let Some(bg) = style.bg {
+            self.set_bg(bg);
+        }
+
+        self
+    }
+}
+
+#[derive(Default, Clone, Copy)]
+pub struct Style {
+    pub fg: Option<Color>,
+    pub bg: Option<Color>,
+    // pub bold: bool,
 }
 
 pub struct Buffer {
@@ -76,7 +93,7 @@ impl Buffer {
     }
 
     // TODO: add styling
-    pub fn set_string(&mut self, x: usize, y: usize, string: &str) {
+    pub fn set_string(&mut self, x: usize, y: usize, string: &str, style: Style) {
         assert!(
             self.contains(x, y),
             "Can't write string entirely outside of buffer."
@@ -88,7 +105,7 @@ impl Buffer {
             if !self.contains(x + i, y) {
                 break;
             }
-            self.get_mut(x + i, y).set_symbol(grapheme);
+            self.get_mut(x + i, y).set_symbol(grapheme).set_style(style);
         }
     }
 }
@@ -111,13 +128,11 @@ pub fn draw_buffer(buffer: Buffer) -> Result<()> {
             }
         }
         if cell.fg != fg {
-            let color = CColor::from(cell.fg);
-            stdout.queue(SetForegroundColor(color))?;
+            stdout.queue(SetForegroundColor(cell.fg))?;
             fg = cell.fg;
         }
         if cell.bg != bg {
-            let color = CColor::from(cell.bg);
-            stdout.queue(SetBackgroundColor(color))?;
+            stdout.queue(SetBackgroundColor(cell.bg))?;
             bg = cell.bg;
         }
 
