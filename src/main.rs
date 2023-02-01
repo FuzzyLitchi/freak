@@ -1,6 +1,6 @@
 #![feature(let_chains)]
 
-use std::{collections::HashMap, fs::File, io::Read, path::PathBuf};
+use std::{fs::File, io::Read, path::PathBuf};
 
 mod buffer;
 use buffer::{draw_buffer, Buffer, Style};
@@ -70,14 +70,18 @@ fn main() -> Result<()> {
 type Distribution = Vec<(u8, u64)>;
 
 fn count_distribution(file: File) -> Result<Distribution> {
-    let mut count: HashMap<u8, u64> = HashMap::new();
+    let mut count = [0_u64; 256];
 
     for byte in file.bytes() {
         let byte = byte?;
-        *count.entry(byte).or_insert(0) += 1;
+        count[byte as usize] += 1;
     }
 
-    Ok(count.into_iter().collect())
+    Ok(count
+        .into_iter()
+        .enumerate()
+        .map(|(i, n)| (i as u8, n))
+        .collect())
 }
 
 enum BarGraph {
