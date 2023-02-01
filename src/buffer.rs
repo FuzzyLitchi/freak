@@ -22,7 +22,7 @@ impl Cell {
     }
 
     pub fn set_char(&mut self, char: char) -> &mut Self {
-        self.symbol = SmolStr::new(&char.to_string()); // FIXME: ew
+        self.symbol = SmolStr::new(char.to_string()); // FIXME: ew
         self
     }
 

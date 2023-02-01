@@ -1,6 +1,6 @@
 #![feature(let_chains)]
 
-use std::{collections::HashMap, default, fs::File, io::Read, path::PathBuf};
+use std::{collections::HashMap, fs::File, io::Read, path::PathBuf};
 
 mod buffer;
 use buffer::{draw_buffer, Buffer, Style};
@@ -148,7 +148,7 @@ fn draw_horizontal_distribution(distribution: &Distribution) -> Result<Buffer> {
         fg: Some(Color::Black),
     };
 
-    for (i, (byte, n)) in distribution.iter().enumerate().take(bar_count as usize) {
+    for (i, (byte, n)) in distribution.iter().enumerate().take(bar_count) {
         // The height of the bar in 8ths
         let bar_height = (((height as u64 - 1) * 8 * n) / max_occurrences) as usize;
         // // very smol amount of elements
