@@ -23,6 +23,6 @@
  - [x] Refractor printing into a seperate method
  - [x] ASCII printing is printing non-ascii characters like `ð`
  - [x] Make the bargraph responsive to your screen with regards to width
- - [ ] Make the bargraph responsive to your screen in a bunch of ways
+ - [x] Make the bargraph responsive to your screen in a bunch of ways
  - [ ] Frequency analysis seems slow, 5.2MB takes 2s
  - [x] Buffer is not big enough for vertical bargraphs.

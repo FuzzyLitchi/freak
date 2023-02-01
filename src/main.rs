@@ -54,9 +54,7 @@ fn main() -> Result<()> {
     } else if cli.vertical {
         graph = BarGraph::Vertical;
     } else {
-        // TODO: switch to this function once vertical works
-        // graph = choose_graph(&distribution)?
-        graph = BarGraph::Horizontal;
+        graph = choose_graph(&distribution)?
     };
 
     let buffer = match graph {
