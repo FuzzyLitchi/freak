@@ -92,7 +92,6 @@ impl Buffer {
         x < self.width && y < self.height
     }
 
-    // TODO: add styling
     pub fn set_string(&mut self, x: usize, y: usize, string: &str, style: Style) {
         assert!(
             self.contains(x, y),
