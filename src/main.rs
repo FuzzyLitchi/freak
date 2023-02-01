@@ -1,22 +1,15 @@
 #![feature(let_chains)]
 
-use std::{
-    collections::HashMap,
-    fs::File,
-    io::{stdout, Read},
-    path::PathBuf,
-};
+use std::{collections::HashMap, fs::File, io::Read, path::PathBuf};
+
+mod buffer;
+use buffer::{draw_buffer, Buffer};
 
 use clap::Parser;
 use color_eyre::{eyre::eyre, Result};
-use crossterm::QueueableCommand;
-use crossterm::{
-    style::{Color as CColor, Print, SetBackgroundColor, SetForegroundColor},
-    terminal,
-};
+
+use crossterm::terminal;
 use tui::{
-    buffer::Buffer,
-    layout::Rect,
     style::{Color, Style},
     symbols::bar,
 };
@@ -100,6 +93,7 @@ enum BarGraph {
 // There is a lot of non-DRY stuff here. Not ideal TODO: fix it.
 fn choose_graph(distribution: &Distribution) -> Result<BarGraph> {
     let (width, _) = terminal::size()?;
+    let width = width as usize;
 
     let max_occurrences: u64 = distribution
         .iter()
@@ -107,8 +101,8 @@ fn choose_graph(distribution: &Distribution) -> Result<BarGraph> {
         .max()
         .unwrap_or_default();
 
-    let datapoints = distribution.len() as u16;
-    let left_margin = max_occurrences.to_string().len() as u16 + 1;
+    let datapoints = distribution.len();
+    let left_margin = max_occurrences.to_string().len() + 1;
     let horizontal_max = (width - left_margin - RIGHT_MARGIN) / (BAR_WIDTH + BAR_MARGIN);
 
     if datapoints <= horizontal_max {
@@ -120,9 +114,9 @@ fn choose_graph(distribution: &Distribution) -> Result<BarGraph> {
     }
 }
 
-const RIGHT_MARGIN: u16 = 1;
-const BAR_WIDTH: u16 = 2;
-const BAR_MARGIN: u16 = 1;
+const RIGHT_MARGIN: usize = 1;
+const BAR_WIDTH: usize = 2;
+const BAR_MARGIN: usize = 1;
 
 /// Creates a buffer with the rendered bar graph. The bar graph is wider than it is tall
 /// which is why we call it horizontal. The bars themselves are actually vertical.
@@ -139,22 +133,20 @@ fn draw_horizontal_distribution(distribution: &Distribution) -> Result<Buffer> {
 
     let height = 25;
     let (width, _) = terminal::size()?;
+    let width = width as usize;
 
-    let area = Rect::new(0, 0, width, height);
-    let mut buffer = Buffer::empty(area);
+    let mut buffer = Buffer::empty(width, height);
 
-    buffer.set_string(0, 0, &max_record_label, Style::default());
-    buffer.set_string(0, height - 2, &min_record_label, Style::default());
+    buffer.set_string(0, 0, &max_record_label);
+    buffer.set_string(0, height - 2, &min_record_label);
 
-    let left_margin: u16 = max_record_label.len() as u16 + 1;
-
-    let style = Style::default().fg(Color::White);
+    let left_margin = max_record_label.len() + 1;
 
     let bar_count = (width - left_margin - RIGHT_MARGIN) / (BAR_WIDTH + BAR_MARGIN);
 
     for (i, (byte, n)) in distribution.iter().enumerate().take(bar_count as usize) {
         // The height of the bar in 8ths
-        let bar_height = (((height - 1) as u64 * 8 * n) / max_occurrences) as u16;
+        let bar_height = (((height as u64 - 1) * 8 * n) / max_occurrences) as usize;
         // // very smol amount of elements
         // if bar_height == 0 && n != 0 {
 
@@ -165,11 +157,11 @@ fn draw_horizontal_distribution(distribution: &Distribution) -> Result<Buffer> {
             for dx in 0..BAR_WIDTH {
                 buffer
                     .get_mut(
-                        left_margin + i as u16 * (BAR_WIDTH + BAR_MARGIN) + dx,
+                        left_margin + i * (BAR_WIDTH + BAR_MARGIN) + dx,
                         height - 2 - dy,
                     )
                     .set_symbol(bar::FULL)
-                    .set_style(style);
+                    .set_fg(Color::White);
             }
         }
 
@@ -188,11 +180,11 @@ fn draw_horizontal_distribution(distribution: &Distribution) -> Result<Buffer> {
 
                 buffer
                     .get_mut(
-                        left_margin + i as u16 * (BAR_WIDTH + BAR_MARGIN) + dx,
+                        left_margin + i * (BAR_WIDTH + BAR_MARGIN) + dx,
                         height - 2 - bar_height,
                     )
                     .set_symbol(symbol)
-                    .set_style(style);
+                    .set_fg(Color::White);
             }
         }
 
@@ -200,36 +192,36 @@ fn draw_horizontal_distribution(distribution: &Distribution) -> Result<Buffer> {
         let hex = format!("{byte:02x}");
         if bar_height > 0 {
             buffer.set_string(
-                left_margin + i as u16 * (BAR_WIDTH + BAR_MARGIN),
+                left_margin + i * (BAR_WIDTH + BAR_MARGIN),
                 height - 2,
-                hex,
-                Style::default().bg(Color::White).fg(Color::Black), // TODO: Make this bold
+                &hex,
+                // Style::default().bg(Color::White).fg(Color::Black), // TODO: Make this bold
             )
         } else {
             buffer.set_string(
-                left_margin + i as u16 * (BAR_WIDTH + BAR_MARGIN),
+                left_margin + i * (BAR_WIDTH + BAR_MARGIN),
                 height - 3,
-                hex,
-                style,
+                &hex,
+                // style, FIXME
             )
         }
 
         // Add ascii byte value
         if let Some(char) = char::from_u32(*byte as u32) && char.is_ascii() && !char.is_control() && !char.is_whitespace() {
             buffer
-                .get_mut(left_margin + i as u16 * (BAR_WIDTH + BAR_MARGIN), height - 1)
+                .get_mut(left_margin + i * (BAR_WIDTH + BAR_MARGIN), height - 1)
                 .set_char(char)
-                .set_style(style);
+                .set_fg(Color::White);
         }
     }
 
     Ok(buffer)
 }
 
-const TOP_MARGIN: u16 = 2;
-const BOTTOM_MARGIN: u16 = 1;
-const LEFT_MARGIN: u16 = 3;
-const BAR_HEIGHT: u16 = 1;
+const TOP_MARGIN: usize = 2;
+const BOTTOM_MARGIN: usize = 1;
+const LEFT_MARGIN: usize = 3;
+const BAR_HEIGHT: usize = 1;
 
 mod vertical {
     pub const ONE_EIGHTH: &str = "▏";
@@ -248,47 +240,38 @@ fn draw_vertical_distribution(distribution: &Vec<(u8, u64)>) -> Result<Buffer> {
         .map(|(_, n)| *n)
         .max()
         .unwrap_or_default();
-    let datapoints = distribution.len() as u16;
+    let datapoints = distribution.len();
 
     // Create labels
     let max_record_label = max_occurrences.to_string();
 
     let (width, _) = terminal::size()?;
+    let width = width as usize;
     let height = TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * datapoints + BOTTOM_MARGIN;
 
-    // FIXME: Size of rect is over 65k which means it doesn't let us do it
-    let area = Rect::new(0, 0, width, height);
-    let width = area.width;
-
-    let mut buffer = Buffer::empty(area);
+    let mut buffer = Buffer::empty(width, height);
 
     // Labels
-    buffer.set_string(LEFT_MARGIN, TOP_MARGIN - 2, "0", Style::default());
+    buffer.set_string(LEFT_MARGIN, TOP_MARGIN - 2, "0");
     buffer.set_string(
-        width - max_record_label.len() as u16 - RIGHT_MARGIN,
+        width - max_record_label.len() - RIGHT_MARGIN,
         TOP_MARGIN - 2,
         &max_record_label,
-        Style::default(),
     );
 
     // Draw bars
-    let style = Style::default().fg(Color::White);
-
     for (i, (byte, n)) in distribution.iter().enumerate() {
         // The height of the bar in 8ths
         let bar_width =
-            (((width - LEFT_MARGIN - RIGHT_MARGIN) as u64 * 8 * n) / max_occurrences) as u16;
+            (((width - LEFT_MARGIN - RIGHT_MARGIN) as u64 * 8 * n) / max_occurrences) as usize;
 
         let (bar_width, last_layer) = (bar_width / 8, bar_width % 8);
 
         for dx in 0..bar_width {
             buffer
-                .get_mut(
-                    LEFT_MARGIN + dx,
-                    TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i as u16,
-                )
+                .get_mut(LEFT_MARGIN + dx, TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i)
                 .set_symbol(vertical::FULL)
-                .set_style(style);
+                .set_fg(Color::White);
         }
 
         if last_layer != 0 {
@@ -306,10 +289,10 @@ fn draw_vertical_distribution(distribution: &Vec<(u8, u64)>) -> Result<Buffer> {
             buffer
                 .get_mut(
                     LEFT_MARGIN + bar_width,
-                    TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i as u16,
+                    TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i,
                 )
                 .set_symbol(symbol)
-                .set_style(style);
+                .set_fg(Color::White);
         }
 
         // Add byte hex value
@@ -317,16 +300,16 @@ fn draw_vertical_distribution(distribution: &Vec<(u8, u64)>) -> Result<Buffer> {
         if bar_width > 0 {
             buffer.set_string(
                 LEFT_MARGIN,
-                TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i as u16,
-                hex,
-                Style::default().bg(Color::White).fg(Color::Black), // TODO: Make this bold
+                TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i,
+                &hex,
+                // Style::default().bg(Color::White).fg(Color::Black), // TODO: Make this bold FIX
             )
         } else {
             buffer.set_string(
                 LEFT_MARGIN + 1,
-                TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i as u16,
-                hex,
-                style,
+                TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i,
+                &hex,
+                // style, FIXME: make this white
             )
         }
 
@@ -335,50 +318,11 @@ fn draw_vertical_distribution(distribution: &Vec<(u8, u64)>) -> Result<Buffer> {
             buffer
                 .get_mut(
                     1,
-                    TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i as u16)
+                    TOP_MARGIN + (BAR_HEIGHT + BAR_MARGIN) * i)
                 .set_char(char)
-                .set_style(style);
+                .set_fg(Color::White);
         }
     }
 
     Ok(buffer)
-}
-
-fn draw_buffer(buffer: Buffer) -> Result<()> {
-    // Draw buffer
-    let mut fg = Color::Reset;
-    let mut bg = Color::Reset;
-    let mut last_pos = None;
-    let mut stdout = stdout();
-
-    stdout.queue(Print("\n"))?;
-    for (i, cell) in buffer.content.iter().enumerate() {
-        let (x, y) = buffer.pos_of(i);
-
-        if let Some((_, last_y)) = last_pos {
-            if last_y != y {
-                // We're on the next line
-                stdout.queue(Print("\n"))?; //TODO: do something better than this??
-            }
-        }
-        if cell.fg != fg {
-            let color = CColor::from(cell.fg);
-            stdout.queue(SetForegroundColor(color))?;
-            fg = cell.fg;
-        }
-        if cell.bg != bg {
-            let color = CColor::from(cell.bg);
-            stdout.queue(SetBackgroundColor(color))?;
-            bg = cell.bg;
-        }
-
-        stdout.queue(Print(&cell.symbol))?;
-
-        last_pos = Some((x, y));
-    }
-
-    stdout.queue(Print("\n"))?; // TODO: also here
-    stdout.queue(Print("\n"))?;
-
-    Ok(())
 }
