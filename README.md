@@ -17,6 +17,7 @@
  - [ ] Option to enable/disable UTF-8 / ASCII only graphics
  - [ ] Figure out some way to put color into this bad boy
  - [ ] Analyze unicode code points / graphemes instead of bytes?
+ - [ ] Analyze bigrams and trigrams
  - [x] Add vertical bargraph (where the bars are horizontal, and the next bar is vertically down)
 
 # Issues
