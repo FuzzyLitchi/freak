@@ -19,6 +19,8 @@
  - [ ] Analyze unicode code points / graphemes instead of bytes?
  - [ ] Analyze bigrams and trigrams
  - [x] Add vertical bargraph (where the bars are horizontal, and the next bar is vertically down)
+ - [ ] Extend horizontal bargraph mode to extend onto new lines when it runs out of space.
+ - [ ] Add option to ignore infrequent bytes, so that they are not displayed in the graph
 
 # Issues
  - [x] Refractor printing into a seperate method
